@@ -48,6 +48,48 @@ class OrnamentManagerTests: XCTestCase, AttributionDataSource {
 
         XCTAssertNotEqual(isInitialCompassHidden, isUpdatedCompassHidden)
     }
+    func testCompassVisiblityTests() {
+        guard let compass = ornamentSupportableView.subviews.compactMap({ $0 as? MapboxCompassOrnamentView}).first else {
+            XCTFail("Failed to find compass in subviews")
+            return
+        }
+
+        struct CompassTest {
+            let bearing: Double
+            let isHidden: Bool
+        }
+        struct VisibilityTest {
+            let visibility: OrnamentVisibility
+            let tests: [CompassTest]
+        }
+
+        let tests: [VisibilityTest] = [
+            VisibilityTest(visibility: .adaptive,
+                           tests: [.init(bearing: 10, isHidden: false), .init(bearing: 0, isHidden: true), .init(bearing: 50, isHidden: false)]),
+            VisibilityTest(visibility: .visible,
+                           tests: [.init(bearing: 0, isHidden: false), .init(bearing: 50, isHidden: false), .init(bearing: 0, isHidden: false)]),
+            VisibilityTest(visibility: .hidden,
+                           tests: [.init(bearing: 10, isHidden: true), .init(bearing: 0, isHidden: true), .init(bearing: 50, isHidden: true)])
+        ]
+        tests.forEach({ visibilityTest in
+            self.ornamentsManager.options.compass.visibility = visibilityTest.visibility
+            XCTAssertEqual(compass.visibility, visibilityTest.visibility, "Compass visibility did not get set to '\(visibilityTest.visibility)'")
+            visibilityTest.tests.forEach({ test in
+                // Set bearing
+                let cameraState = MapboxCoreMaps.CameraState(center: CLLocationCoordinate2D(latitude: 45.523052, longitude: -122.663649),
+                                                             padding: EdgeInsets(top: 0, left: 0, bottom: 0, right: 0),
+                                                             zoom: 15,
+                                                             bearing: test.bearing,
+                                                             pitch: 0)
+                // Mock a camera changed event
+                self.ornamentSupportableView.notifyCameraChanged(cameraState: CameraState(cameraState))
+                let isHidden = compass.isHidden || compass.containerView.isHidden
+                XCTAssertEqual(isHidden,
+                               test.isHidden,
+                               "Compass visibility '\(visibilityTest.visibility)' compass is \(isHidden ? "hidden" : "visible") with bearing = \(test.bearing)")
+            })
+        })
+    }
 
     func testScaleBarOnRight() throws {
         let initialSubviews = ornamentSupportableView.subviews.filter { $0 is MapboxScaleBarOrnamentView }
