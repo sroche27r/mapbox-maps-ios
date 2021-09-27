@@ -91,6 +91,33 @@ class OrnamentManagerTests: XCTestCase, AttributionDataSource {
         })
     }
 
+    func testCompassImage() throws {
+        // Create a dummy image to use for custom compass image
+        let image: UIImage = UIGraphicsImageRenderer(size: CGSize(width: 50, height: 50)).image { rendererContext in
+            UIColor.red.setFill()
+            rendererContext.fill(CGRect(origin: .zero, size: CGSize(width: 50, height: 50)))
+        }
+
+        let initialSubviews = ornamentSupportableView.subviews.filter { $0 is MapboxCompassOrnamentView }
+        let compass = try XCTUnwrap(initialSubviews.first as? MapboxCompassOrnamentView, "The ornament supportable map view should include a compass")
+
+        // Check initial values
+        XCTAssertEqual(CompassImage.default, compass.image, "Compass should be initialized with default image")
+        XCTAssertEqual(compass.image, ornamentsManager.options.compass.image, "OrnamentsManager and compass image are out of sync")
+
+        // Test set image to custom
+        let custom = CompassImage.custom(image)
+        ornamentsManager.options.compass.image = custom
+        XCTAssertEqual(custom, compass.image, "Compass image did not get set to custom")
+        XCTAssertEqual(compass.image, ornamentsManager.options.compass.image, "OrnamentsManager and compass image are out of sync")
+        XCTAssertEqual(image, compass.containerView.image, "Compass image view image did not get set to custom image")
+
+        // Test set image to default
+        ornamentsManager.options.compass.image = .default
+        XCTAssertEqual(CompassImage.default, compass.image, "Compass image did not get set to default")
+        XCTAssertEqual(compass.image, ornamentsManager.options.compass.image, "OrnamentsManager and compass image are out of sync")
+        XCTAssertNotEqual(image, compass.containerView.image, "Compass image view image is still set to custom image")
+    }
     func testScaleBarOnRight() throws {
         let initialSubviews = ornamentSupportableView.subviews.filter { $0 is MapboxScaleBarOrnamentView }
 
