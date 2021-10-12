@@ -140,6 +140,9 @@ public class OrnamentsManager: NSObject {
         compassView.visibility = options.compass.visibility
         compassView.isHidden = options.compass.visibility == .hidden
         attributionButton.isHidden = options.attributionButton.visibility == .hidden
+
+        // set compass visibility
+        compassView.visibility = options.compass.visibility
     }
 
     private func constraints(with view: UIView, position: OrnamentPosition, margins: CGPoint) -> [NSLayoutConstraint] {
