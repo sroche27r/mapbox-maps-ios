@@ -13,7 +13,10 @@ internal protocol MapboxMapProtocol: AnyObject {
     func dragStart(for point: CGPoint)
     func dragCameraOptions(from: CGPoint, to: CGPoint) -> CameraOptions
     func dragEnd()
-
+    func beginAnimation()
+    func endAnimation()
+    func beginGesture()
+    func endGesture()
     @discardableResult
     func onEvery(_ eventType: MapEvents.EventKind, handler: @escaping (Event) -> Void) -> Cancelable
 }
@@ -533,6 +536,50 @@ public final class MapboxMap: MapboxMapProtocol {
     public func dragEnd() {
         __map.dragEnd()
     }
+
+    // MARK: - Gesture and Animation Flags
+
+    private var animationCount = 0
+
+    /// If implementing a custom animation mechanism, call this method when the animation begins.
+    /// Must always be paired with a corresponding call to `endAnimation()`
+    public func beginAnimation() {
+        animationCount += 1
+        if animationCount == 1 {
+            __map.setUserAnimationInProgressForInProgress(true)
+        }
+    }
+
+    /// If implementing a custom animation mechanism, call this method when the animation ends.
+    /// Must always be paired with a corresponding call to `beginAnimation()`
+    public func endAnimation() {
+        assert(animationCount > 0)
+        animationCount -= 1
+        if animationCount == 0 {
+            __map.setUserAnimationInProgressForInProgress(false)
+        }
+    }
+
+    private var gestureCount = 0
+
+    /// If implementing a custom gesture, call this method when the gesture begins.
+    /// Must always be paired with a corresponding call to `endGesture()`
+    public func beginGesture() {
+        gestureCount += 1
+        if gestureCount == 1 {
+            __map.setGestureInProgressForInProgress(true)
+        }
+    }
+
+    /// If implementing a custom gesture, call this method when the gesture ends.
+    /// Must always be paired with a corresponding call to `beginGesture()`
+    public func endGesture() {
+        assert(gestureCount > 0)
+        gestureCount -= 1
+        if gestureCount == 0 {
+            __map.setGestureInProgressForInProgress(false)
+        }
+    }
 }
 
 // MARK: - MapFeatureQueryable
@@ -787,6 +834,38 @@ extension MapboxMap {
                                  sourceLayerId: sourceLayerId,
                                  featureId: featureId,
                                  stateKey: stateKey)
+    }
+}
+
+// MARK: - MapProjection
+
+extension MapboxMap {
+    /// Errors related to MapProjection API
+    @_spi(Experimental) public enum MapProjectionError: Error {
+        case unsupportedProjection
+    }
+
+    /// Set map projection for Mapbox map.
+    /// - Parameter mode: The `MapProjection` to be used by the map.
+    /// - Throws: Errors during encoding or `MapProjectionError.unsupportedProjection` if the supplied projection is not compatible with the SDK.
+    @_spi(Experimental) public func setMapProjection(_ mapProjection: MapProjection) throws {
+        let data = try JSONEncoder().encode(mapProjection)
+        let object = try JSONSerialization.jsonObject(with: data, options: [])
+        __map.setMapProjectionForProjection(object)
+    }
+
+    /// Get current map projection for Mapbox map.
+    ///
+    /// Please note that even if MapboxMap is configured to use `MapProjection.globe`
+    /// starting from `GlobeMapProjection.transitionZoomLevel` and above
+    /// this method will return `MapProjection.mercator`.
+    ///
+    /// - Returns:
+    ///     `MapProjection` map is using.
+    /// - Throws: Errors during decoding
+    @_spi(Experimental) public func mapProjection() throws -> MapProjection {
+        let data = try JSONSerialization.data(withJSONObject: __map.getMapProjection(), options: [])
+        return try JSONDecoder().decode(MapProjection.self, from: data)
     }
 }
 

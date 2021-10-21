@@ -1,6 +1,7 @@
 // swiftlint:disable file_length
 @_exported import MapboxCoreMaps
 @_exported import MapboxCommon
+@_exported import MetalKit
 @_exported import Turf
 @_implementationOnly import MapboxCoreMaps_Private
 @_implementationOnly import MapboxCommon_Private
@@ -39,7 +40,7 @@ open class MapView: UIView {
     private var attributionDialogManager: AttributionDialogManager!
 
     /// A reference to the `EventsManager` used for dispatching telemetry.
-    internal var eventsListener: EventsListener!
+    private var eventsListener: EventsListener?
 
     /// A Boolean value that indicates whether the underlying `CAMetalLayer` of the `MapView`
     /// presents its content using a CoreAnimation transaction
@@ -250,8 +251,11 @@ open class MapView: UIView {
         cameraViewContainerView.isHidden = true
         addSubview(cameraViewContainerView)
 
-        // Setup Telemetry logging
-        setUpTelemetryLogging()
+        // Setup Telemetry logging. Delay initialization by 10 seconds.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            guard let self = self else { return }
+            self.setUpTelemetryLogging()
+        }
 
         // Set up managers
         setupManagers()
@@ -412,20 +416,14 @@ open class MapView: UIView {
 
     @objc func didReceiveMemoryWarning() {
         mapboxMap.reduceMemoryUse()
-        eventsListener.push(event: .memoryWarning)
     }
 
     // MARK: Telemetry
 
     private func setUpTelemetryLogging() {
         guard let validResourceOptions = resourceOptions else { return }
-        let eventsListener = EventsManager(accessToken: validResourceOptions.accessToken)
-
-        DispatchQueue.main.async {
-            eventsListener.push(event: .map(event: .loaded))
-        }
-
-        self.eventsListener = eventsListener
+        eventsListener = EventsManager(accessToken: validResourceOptions.accessToken)
+        eventsListener?.push(event: .map(event: .loaded))
     }
 }
 
